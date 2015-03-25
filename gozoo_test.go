@@ -25,19 +25,16 @@ var _ = Describe("Gozoo", func() {
 		value := []byte("this is a test of create, get and delete")
 		path := "/gozoo_create_get_delete_test"
 		_, err = z.Create(path, value)
+		defer func() {
+			z.Delete(path)
+			z.Close()
+		}()
 		Expect(err).ToNot(HaveOccurred())
 
 		actualValue, err := z.Get(path)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(actualValue).To(Equal(value))
 
-		err = z.Delete(path)
-		Expect(err).ToNot(HaveOccurred())
-
-		_, err = z.Get(path)
-		Expect(err).To(HaveOccurred())
-
-		z.Close()
 	})
 
 	It("creates a new znode and sets it to a different value", func(done Done) {
@@ -47,14 +44,19 @@ var _ = Describe("Gozoo", func() {
 		z.Callback = func(zooType int, zooState int, path string) {
 			wasCalled <- path
 		}
+
 		err := z.Init("localhost:2181", 1000)
 		Expect(err).ToNot(HaveOccurred())
 
 		value := []byte("this is a test of create and set")
 		path := "/gozoo_create_set_test"
 		_, err = z.Create(path, value)
+		defer func() {
+			z.Delete(path)
+			z.Close()
+		}()
 		Expect(err).ToNot(HaveOccurred())
-		Expect(wasCalled).To(Receive())
+		Eventually(wasCalled).Should(Receive())
 
 		actualValue, err := z.Get(path)
 		Expect(err).ToNot(HaveOccurred())
@@ -63,16 +65,11 @@ var _ = Describe("Gozoo", func() {
 		newValue := []byte("this is the modified value")
 		err = z.Set(path, newValue)
 		Expect(err).ToNot(HaveOccurred())
-		Expect(wasCalled).To(Receive(Equal(path)))
+		Eventually(wasCalled).Should(Receive(Equal(path)))
 
 		actualValue, err = z.Get(path)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(actualValue).To(Equal(newValue))
 
-		err = z.Delete(path)
-		Expect(err).ToNot(HaveOccurred())
-		Expect(wasCalled).To(Receive(Equal(path)))
-
-		z.Close()
 	})
 })

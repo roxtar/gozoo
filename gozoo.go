@@ -46,9 +46,9 @@ func (z *ZooClient) Init(hostname string, recvTimeout int) error {
 }
 
 func (z *ZooClient) Close() error {
-	err := int(C.zookeeper_close(z.handle))
+	err := C.zookeeper_close(z.handle)
 	if err != 0 {
-		return fmt.Errorf(string(err))
+		return fmt.Errorf("%s", convertZookeeperError(err))
 	}
 	return nil
 }
@@ -63,7 +63,7 @@ func (z *ZooClient) Create(path string, value []byte) (string, error) {
 
 	err := C.zoo_create(z.handle, cpath, valuePtr, C.int(len(value)), &C.ZOO_OPEN_ACL_UNSAFE, 0, buffer, C.int(bufferLength))
 	if err != 0 {
-		return "", fmt.Errorf(string(int(err)))
+		return "", fmt.Errorf("%s", convertZookeeperError(err))
 	}
 	return C.GoStringN(buffer, C.int(bufferLength)), nil
 }
@@ -74,7 +74,7 @@ func (z *ZooClient) Delete(path string) error {
 
 	err := C.zoo_delete(z.handle, cpath, -1)
 	if err != 0 {
-		return fmt.Errorf(string(int(err)))
+		return fmt.Errorf("%s", convertZookeeperError(err))
 	}
 	return nil
 }
@@ -92,7 +92,7 @@ func (z *ZooClient) Get(path string) ([]byte, error) {
 
 	err := C.zoo_get(z.handle, cpath, 1, buffer, &actualBufferLength, nil)
 	if err != 0 {
-		return []byte{}, fmt.Errorf(string(int(err)))
+		return []byte{}, fmt.Errorf("%s", convertZookeeperError(err))
 	}
 	if actualBufferLength > 0 {
 		value := C.GoBytes(unsafe.Pointer(buffer), actualBufferLength)
@@ -109,7 +109,7 @@ func (z *ZooClient) Set(path string, value []byte) error {
 
 	err := C.zoo_set(z.handle, cpath, valuePtr, C.int(len(value)), -1)
 	if err != 0 {
-		return fmt.Errorf(string(int(err)))
+		return fmt.Errorf("%s", convertZookeeperError(err))
 	}
 	return nil
 }
