@@ -24,15 +24,6 @@ func NewClient() ZooClient {
 	return ZooClient{BufferLength: 1024}
 }
 
-//export goCallback
-func goCallback(zooType int, zooState int, path C.const_char_ptr, context unsafe.Pointer) {
-	gpath := C.GoString(path)
-	z := (*ZooClient)(context)
-	if z.Callback != nil {
-		z.Callback(zooType, zooState, gpath)
-	}
-}
-
 func (z *ZooClient) Init(hostname string, recvTimeout int) error {
 	chostname := (C.const_char_ptr)(C.CString(hostname))
 	defer C.free(unsafe.Pointer(chostname))
@@ -112,4 +103,13 @@ func (z *ZooClient) Set(path string, value []byte) error {
 		return fmt.Errorf("%s", convertZookeeperError(err))
 	}
 	return nil
+}
+
+//export goCallback
+func goCallback(zooType int, zooState int, path C.const_char_ptr, context unsafe.Pointer) {
+	gpath := C.GoString(path)
+	z := (*ZooClient)(context)
+	if z.Callback != nil {
+		z.Callback(zooType, zooState, gpath)
+	}
 }
