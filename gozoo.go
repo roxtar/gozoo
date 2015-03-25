@@ -7,6 +7,7 @@ package gozoo
 // #include <zookeeper/zookeeper.h>
 // typedef const char * const_char_ptr;
 // typedef char * char_ptr;
+// void gozoo_watcher(zhandle_t *zzh, int type, int state, const char *path, void *watcherCtx);
 import "C"
 import "unsafe"
 import "fmt"
@@ -20,10 +21,15 @@ func NewClient() ZooClient {
 	return ZooClient{BufferLength: 1024}
 }
 
+//export goCallback
+func goCallback(zooType int, zooState int, path C.const_char_ptr) {
+    fmt.Printf("Watcher event: type: %v, state: %v, path: %v\n", zooType, zooState, C.GoString(path))
+}
+
 func (z *ZooClient) Init(hostname string, recvTimeout int) error {
 	chostname := (C.const_char_ptr)(C.CString(hostname))
 	defer C.free(unsafe.Pointer(chostname))
-	zhandle, err := C.zookeeper_init(chostname, nil, C.int(recvTimeout), nil, nil, 0)
+	zhandle, err := C.zookeeper_init(chostname, C.watcher_fn(C.gozoo_watcher), C.int(recvTimeout), nil, nil, 0)
 	z.handle = zhandle
 	if zhandle == nil {
 		return err
