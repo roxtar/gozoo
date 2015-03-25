@@ -40,8 +40,13 @@ var _ = Describe("Gozoo", func() {
 		z.Close()
 	})
 
-	It("creates a new znode and sets it to a different value", func() {
+	It("creates a new znode and sets it to a different value", func(done Done) {
+		defer close(done)
 		z := NewClient()
+		wasCalled := make(chan string, 1)
+		z.Callback = func(zooType int, zooState int, path string) {
+			wasCalled <- path
+		}
 		err := z.Init("localhost:2181", 1000)
 		Expect(err).ToNot(HaveOccurred())
 
@@ -49,6 +54,7 @@ var _ = Describe("Gozoo", func() {
 		path := "/gozoo_create_set_test"
 		_, err = z.Create(path, value)
 		Expect(err).ToNot(HaveOccurred())
+		Expect(wasCalled).To(Receive())
 
 		actualValue, err := z.Get(path)
 		Expect(err).ToNot(HaveOccurred())
@@ -57,6 +63,7 @@ var _ = Describe("Gozoo", func() {
 		newValue := []byte("this is the modified value")
 		err = z.Set(path, newValue)
 		Expect(err).ToNot(HaveOccurred())
+		Expect(wasCalled).To(Receive(Equal(path)))
 
 		actualValue, err = z.Get(path)
 		Expect(err).ToNot(HaveOccurred())
@@ -64,6 +71,7 @@ var _ = Describe("Gozoo", func() {
 
 		err = z.Delete(path)
 		Expect(err).ToNot(HaveOccurred())
+		Expect(wasCalled).To(Receive(Equal(path)))
 
 		z.Close()
 	})

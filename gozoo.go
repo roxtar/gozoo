@@ -12,9 +12,12 @@ import "C"
 import "unsafe"
 import "fmt"
 
+type WatcherCallback func(zooType int, zooState int, path string)
+
 type ZooClient struct {
 	handle       *C.zhandle_t
 	BufferLength int
+	Callback     WatcherCallback
 }
 
 func NewClient() ZooClient {
@@ -22,14 +25,18 @@ func NewClient() ZooClient {
 }
 
 //export goCallback
-func goCallback(zooType int, zooState int, path C.const_char_ptr) {
-    fmt.Printf("Watcher event: type: %v, state: %v, path: %v\n", zooType, zooState, C.GoString(path))
+func goCallback(zooType int, zooState int, path C.const_char_ptr, context unsafe.Pointer) {
+	gpath := C.GoString(path)
+	z := (*ZooClient)(context)
+	if z.Callback != nil {
+		z.Callback(zooType, zooState, gpath)
+	}
 }
 
 func (z *ZooClient) Init(hostname string, recvTimeout int) error {
 	chostname := (C.const_char_ptr)(C.CString(hostname))
 	defer C.free(unsafe.Pointer(chostname))
-	zhandle, err := C.zookeeper_init(chostname, C.watcher_fn(C.gozoo_watcher), C.int(recvTimeout), nil, nil, 0)
+	zhandle, err := C.zookeeper_init(chostname, C.watcher_fn(C.gozoo_watcher), C.int(recvTimeout), nil, unsafe.Pointer(z), 0)
 	z.handle = zhandle
 	if zhandle == nil {
 		return err
@@ -83,7 +90,7 @@ func (z *ZooClient) Get(path string) ([]byte, error) {
 
 	var actualBufferLength C.int = C.int(bufferLength)
 
-	err := C.zoo_get(z.handle, cpath, 0, buffer, &actualBufferLength, nil)
+	err := C.zoo_get(z.handle, cpath, 1, buffer, &actualBufferLength, nil)
 	if err != 0 {
 		return []byte{}, fmt.Errorf(string(int(err)))
 	}
