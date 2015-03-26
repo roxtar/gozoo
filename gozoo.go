@@ -1,6 +1,6 @@
 package gozoo
 
-// #cgo LDFLAGS: -lzookeeper_mt
+// #cgo LDFLAGS: -lzookeeper_mt -lm -lpthread
 // #include <stdio.h>
 // #include <errno.h>
 // #include <stdlib.h>
@@ -110,9 +110,9 @@ func (z *ZooClient) Set(path string, value []byte) error {
 
 //export goCallback
 func goCallback(zooType int, zooState int, path C.const_char_ptr, context unsafe.Pointer) {
-	gpath := C.GoString(path)
-	z := (*ZooClient)(context)
-	if z.Callback != nil {
-		z.Callback(zooType, zooState, gpath)
-	}
+//	gpath := C.GoString(path)
+//	z, ok := context.(*ZooClient)
+//	if ok && z.Callback != nil {
+//		z.Callback(zooType, zooState, gpath)
+//	}
 }
