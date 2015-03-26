@@ -80,6 +80,19 @@ var _ = Describe("Gozoo", func() {
 
 	})
 
+	It("can create a node with a nil value", func() {
+		z := NewClient()
+		err := z.Init("localhost:2181", 1000)
+		Expect(err).ToNot(HaveOccurred())
+		path := "/gozoo_create_null"
+		_, err = z.Create(path, nil)
+		Expect(err).ToNot(HaveOccurred())
+		defer func() {
+			z.Delete(path)
+			z.Close()
+		}()
+	})
+
 	It("can set a node with a nil value", func() {
 		z := NewClient()
 		err := z.Init("localhost:2181", 1000)
