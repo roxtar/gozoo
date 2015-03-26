@@ -17,6 +17,13 @@ var _ = Describe("Gozoo", func() {
 		Expect(err).ToNot(HaveOccurred())
 	})
 
+	It("initialization of zookeeper fails for unreachable server", func() {
+		z := NewClient()
+		err := z.Init("unreachable:2181", 1000)
+		Expect(err).To(HaveOccurred())
+		z.Close()
+	})
+
 	It("creates a new znode, gets its value and deletes it", func() {
 		z := NewClient()
 		err := z.Init("localhost:2181", 1000)
@@ -71,5 +78,24 @@ var _ = Describe("Gozoo", func() {
 		Expect(err).ToNot(HaveOccurred())
 		Expect(actualValue).To(Equal(newValue))
 
+	})
+
+	It("can set a node with a nil value", func() {
+		z := NewClient()
+		err := z.Init("localhost:2181", 1000)
+		Expect(err).ToNot(HaveOccurred())
+		value := []byte("this is a test of create and set")
+		path := "/gozoo_create_null_set"
+		_, err = z.Create(path, value)
+		defer func() {
+			z.Delete(path)
+			z.Close()
+		}()
+		err = z.Set(path, nil)
+		Expect(err).ToNot(HaveOccurred())
+
+		actualValue, err := z.Get(path)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(actualValue).To(Equal([]byte{}))
 	})
 })

@@ -130,7 +130,10 @@ func (z *ZooClient) Set(path string, value []byte) error {
 	cpath := C.CString(path)
 	defer C.free(unsafe.Pointer(cpath))
 
-	valuePtr := (C.const_char_ptr)(unsafe.Pointer(&value[0]))
+	var valuePtr C.const_char_ptr = nil
+	if len(value) > 0 {
+		valuePtr = (C.const_char_ptr)(unsafe.Pointer(&value[0]))
+	}
 
 	err := C.zoo_set(z.handle, cpath, valuePtr, C.int(len(value)), -1)
 	if err != 0 {
