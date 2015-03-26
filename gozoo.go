@@ -48,7 +48,10 @@ func (z *ZooClient) Create(path string, value []byte) (string, error) {
 	bufferLength := z.BufferLength
 	buffer := C.char_ptr(C.malloc(C.size_t(bufferLength)))
 	defer C.free(unsafe.Pointer(buffer))
-	valuePtr := (C.const_char_ptr)(unsafe.Pointer(&value[0]))
+	var valuePtr C.const_char_ptr = nil
+	if len(value) > 0 {
+		valuePtr = (C.const_char_ptr)(unsafe.Pointer(&value[0]))
+	}
 	cpath := C.CString(path)
 	defer C.free(unsafe.Pointer(cpath))
 
@@ -56,7 +59,7 @@ func (z *ZooClient) Create(path string, value []byte) (string, error) {
 	if err != 0 {
 		return "", fmt.Errorf("%s", convertZookeeperError(err))
 	}
-	return C.GoStringN(buffer, C.int(bufferLength)), nil
+	return C.GoString(buffer), nil
 }
 
 func (z *ZooClient) Delete(path string) error {
