@@ -6,6 +6,7 @@ import "C"
 type ZookeeperEvent int
 type ZookeeperError int
 type ZookeeperState int
+type ZookeeperCreateFlag int
 
 const (
 	ZooCreatedEvent ZookeeperEvent = iota
@@ -52,6 +53,11 @@ const (
 	ZooAssociatingState
 	ZooConnectedState
 	ZooUnknownState
+)
+
+const (
+	ZooEphemeralCreateFlag ZookeeperCreateFlag = iota
+	ZooSequenceCreateFlag
 )
 
 func convertZookeeperEvent(value C.int) ZookeeperEvent {
@@ -142,5 +148,16 @@ func convertZookeeperError(value C.int) ZookeeperError {
 		return ZooSessionMovedError
 	default:
 		return ZooUnknownError
+	}
+}
+
+func convertToCreateFlag(flag ZookeeperCreateFlag) C.int {
+	switch flag {
+	case ZooEphemeralCreateFlag:
+		return C.ZOO_EPHEMERAL
+	case ZooSequenceCreateFlag:
+		return C.ZOO_SEQUENCE
+	default:
+		return -1
 	}
 }

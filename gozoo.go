@@ -45,6 +45,10 @@ func (z *ZooClient) Close() error {
 }
 
 func (z *ZooClient) Create(path string, value []byte) (string, error) {
+	return z.CreateWithFlags(path, value, 0)
+}
+
+func (z *ZooClient) CreateWithFlags(path string, value []byte, flags ZookeeperCreateFlag) (string, error) {
 	bufferLength := z.BufferLength
 	buffer := C.char_ptr(C.malloc(C.size_t(bufferLength)))
 	defer C.free(unsafe.Pointer(buffer))
@@ -55,9 +59,9 @@ func (z *ZooClient) Create(path string, value []byte) (string, error) {
 	cpath := C.CString(path)
 	defer C.free(unsafe.Pointer(cpath))
 
-	err := C.zoo_create(z.handle, cpath, valuePtr, C.int(len(value)), &C.ZOO_OPEN_ACL_UNSAFE, 0, buffer, C.int(bufferLength))
+	err := C.zoo_create(z.handle, cpath, valuePtr, C.int(len(value)), &C.ZOO_OPEN_ACL_UNSAFE, C.int(flags), buffer, C.int(bufferLength))
 	if err != 0 {
-		return "", fmt.Errorf("%s", convertZookeeperError(err))
+		return "", newZooError(convertZookeeperError(err))
 	}
 	return C.GoString(buffer), nil
 }
@@ -68,7 +72,7 @@ func (z *ZooClient) Delete(path string) error {
 
 	err := C.zoo_delete(z.handle, cpath, -1)
 	if err != 0 {
-		return fmt.Errorf("%s", convertZookeeperError(err))
+		return newZooError(convertZookeeperError(err))
 	}
 	return nil
 }
@@ -86,7 +90,7 @@ func (z *ZooClient) Get(path string) ([]byte, error) {
 
 	err := C.zoo_get(z.handle, cpath, 1, buffer, &actualBufferLength, nil)
 	if err != 0 {
-		return []byte{}, fmt.Errorf("%s", convertZookeeperError(err))
+		return []byte{}, newZooError(convertZookeeperError(err))
 	}
 	if actualBufferLength > 0 {
 		value := C.GoBytes(unsafe.Pointer(buffer), actualBufferLength)
@@ -110,9 +114,9 @@ func (z *ZooClient) Set(path string, value []byte) error {
 
 //export goCallback
 func goCallback(zooType int, zooState int, path C.const_char_ptr, context unsafe.Pointer) {
-//	gpath := C.GoString(path)
-//	z, ok := context.(*ZooClient)
-//	if ok && z.Callback != nil {
-//		z.Callback(zooType, zooState, gpath)
-//	}
+	//	gpath := C.GoString(path)
+	//	z, ok := context.(*ZooClient)
+	//	if ok && z.Callback != nil {
+	//		z.Callback(zooType, zooState, gpath)
+	//	}
 }
