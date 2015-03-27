@@ -7,7 +7,9 @@ package gozoo
 // #include <zookeeper/zookeeper.h>
 // typedef const char * const_char_ptr;
 // typedef char * char_ptr;
+// typedef struct String_vector String_vector;
 // void gozoo_watcher(zhandle_t *zzh, int type, int state, const char *path, void *watcherCtx);
+// char * get_string(char ** strings, int index);
 import "C"
 import "unsafe"
 import "fmt"
@@ -64,7 +66,7 @@ func (z *ZooClient) Close() error {
 	syncRoot.Unlock()
 
 	err := C.zookeeper_close(z.handle)
-	if err != 0 {
+	if err != C.ZOK {
 		return fmt.Errorf("%s", convertZookeeperError(err))
 	}
 
@@ -87,7 +89,7 @@ func (z *ZooClient) CreateWithFlags(path string, value []byte, flags ZookeeperCr
 	defer C.free(unsafe.Pointer(cpath))
 
 	err := C.zoo_create(z.handle, cpath, valuePtr, C.int(len(value)), &C.ZOO_OPEN_ACL_UNSAFE, C.int(flags), buffer, C.int(bufferLength))
-	if err != 0 {
+	if err != C.ZOK {
 		return "", newZooError(convertZookeeperError(err))
 	}
 	return C.GoString(buffer), nil
@@ -98,7 +100,7 @@ func (z *ZooClient) Delete(path string) error {
 	defer C.free(unsafe.Pointer(cpath))
 
 	err := C.zoo_delete(z.handle, cpath, -1)
-	if err != 0 {
+	if err != C.ZOK {
 		return newZooError(convertZookeeperError(err))
 	}
 	return nil
@@ -116,7 +118,7 @@ func (z *ZooClient) Get(path string) ([]byte, error) {
 	var actualBufferLength C.int = C.int(bufferLength)
 
 	err := C.zoo_get(z.handle, cpath, 1, buffer, &actualBufferLength, nil)
-	if err != 0 {
+	if err != C.ZOK {
 		return []byte{}, newZooError(convertZookeeperError(err))
 	}
 	if actualBufferLength > 0 {
@@ -124,6 +126,22 @@ func (z *ZooClient) Get(path string) ([]byte, error) {
 		return value, nil
 	}
 	return []byte{}, nil
+}
+
+func (z *ZooClient) GetChildren(path string) ([]string, error) {
+	cpath := C.CString(path)
+	defer C.free(unsafe.Pointer(cpath))
+	var vector C.String_vector
+	err := C.zoo_get_children(z.handle, cpath, 1, &vector)
+	if err != C.ZOK {
+		return []string{}, newZooError(convertZookeeperError(err))
+	}
+	results := make([]string, vector.count)
+	for i := 0; i < len(results); i++ {
+		str := C.get_string(vector.data, C.int(i))
+		results[i] = C.GoString(str)
+	}
+	return results, nil
 }
 
 func (z *ZooClient) Set(path string, value []byte) error {
@@ -136,7 +154,7 @@ func (z *ZooClient) Set(path string, value []byte) error {
 	}
 
 	err := C.zoo_set(z.handle, cpath, valuePtr, C.int(len(value)), -1)
-	if err != 0 {
+	if err != C.ZOK {
 		return fmt.Errorf("%s", convertZookeeperError(err))
 	}
 	return nil
@@ -150,8 +168,8 @@ func goCallback(zooType int, zooState int, path C.const_char_ptr, context unsafe
 	zk, ok := zooClientLookup[index]
 	syncRoot.RUnlock()
 	if ok && zk.Callback != nil {
-        eventType := C.int(zooType)
-        state := C.int(zooState)
+		eventType := C.int(zooType)
+		state := C.int(zooState)
 		zk.Callback(convertZookeeperEvent(eventType), convertZookeeperState(state), gpath)
 	}
 }
