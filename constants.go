@@ -79,7 +79,7 @@ func convertZookeeperEvent(value C.int) ZookeeperEvent {
 	}
 }
 
-func covertZookeeperState(value C.int) ZookeeperState {
+func convertZookeeperState(value C.int) ZookeeperState {
 	switch value {
 	case C.ZOO_EXPIRED_SESSION_STATE:
 		return ZooSessionState

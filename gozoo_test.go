@@ -48,7 +48,7 @@ var _ = Describe("Gozoo", func() {
 		defer close(done)
 		z := NewClient()
 		wasCalled := make(chan string, 1)
-		z.Callback = func(zooType int, zooState int, path string) {
+		z.Callback = func(zooType ZookeeperEvent, zooState ZookeeperState, path string) {
 			wasCalled <- path
 		}
 

@@ -25,7 +25,7 @@ func init() {
 	zooIndex = 0
 }
 
-type WatcherCallback func(zooType int, zooState int, path string)
+type WatcherCallback func(event ZookeeperEvent, state ZookeeperState, path string)
 
 type ZooClient struct {
 	handle       *C.zhandle_t
@@ -150,6 +150,8 @@ func goCallback(zooType int, zooState int, path C.const_char_ptr, context unsafe
 	zk, ok := zooClientLookup[index]
 	syncRoot.RUnlock()
 	if ok && zk.Callback != nil {
-		zk.Callback(zooType, zooState, gpath)
+        eventType := C.int(zooType)
+        state := C.int(zooState)
+		zk.Callback(convertZookeeperEvent(eventType), convertZookeeperState(state), gpath)
 	}
 }
