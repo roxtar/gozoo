@@ -11,6 +11,19 @@ package gozoo
 import "C"
 import "unsafe"
 import "fmt"
+import "sync"
+
+var (
+	zooClientLookup map[int32]*ZooClient
+	syncRoot        *sync.RWMutex
+	zooIndex        int32
+)
+
+func init() {
+	zooClientLookup = make(map[int32]*ZooClient)
+	syncRoot = &sync.RWMutex{}
+	zooIndex = 0
+}
 
 type WatcherCallback func(zooType int, zooState int, path string)
 
@@ -18,16 +31,25 @@ type ZooClient struct {
 	handle       *C.zhandle_t
 	BufferLength int
 	Callback     WatcherCallback
+	index        int32
 }
 
-func NewClient() ZooClient {
-	return ZooClient{BufferLength: 1024}
+func NewClient() *ZooClient {
+	syncRoot.Lock()
+	defer syncRoot.Unlock()
+	zk := &ZooClient{
+		BufferLength: 1024,
+		index:        zooIndex,
+	}
+	zooClientLookup[zooIndex] = zk
+	zooIndex++
+	return zk
 }
 
 func (z *ZooClient) Init(hostname string, recvTimeout int) error {
 	chostname := (C.const_char_ptr)(C.CString(hostname))
 	defer C.free(unsafe.Pointer(chostname))
-	zhandle, err := C.zookeeper_init(chostname, C.watcher_fn(C.gozoo_watcher), C.int(recvTimeout), nil, unsafe.Pointer(z), 0)
+	zhandle, err := C.zookeeper_init(chostname, C.watcher_fn(C.gozoo_watcher), C.int(recvTimeout), nil, unsafe.Pointer(&z.index), 0)
 	z.handle = zhandle
 	if zhandle == nil {
 		return err
@@ -37,10 +59,15 @@ func (z *ZooClient) Init(hostname string, recvTimeout int) error {
 }
 
 func (z *ZooClient) Close() error {
+	syncRoot.Lock()
+	delete(zooClientLookup, z.index)
+	syncRoot.Unlock()
+
 	err := C.zookeeper_close(z.handle)
 	if err != 0 {
 		return fmt.Errorf("%s", convertZookeeperError(err))
 	}
+
 	return nil
 }
 
@@ -114,9 +141,12 @@ func (z *ZooClient) Set(path string, value []byte) error {
 
 //export goCallback
 func goCallback(zooType int, zooState int, path C.const_char_ptr, context unsafe.Pointer) {
-	//	gpath := C.GoString(path)
-	//	z, ok := context.(*ZooClient)
-	//	if ok && z.Callback != nil {
-	//		z.Callback(zooType, zooState, gpath)
-	//	}
+	gpath := C.GoString(path)
+	index := (*(*int32)(context))
+	syncRoot.RLock()
+	zk, ok := zooClientLookup[index]
+	syncRoot.RUnlock()
+	if ok && zk.Callback != nil {
+		zk.Callback(zooType, zooState, gpath)
+	}
 }
