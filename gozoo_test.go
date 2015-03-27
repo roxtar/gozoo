@@ -44,7 +44,7 @@ var _ = Describe("Gozoo", func() {
 
 	})
 
-	FIt("creates a new znode and sets it to a different value", func(done Done) {
+	It("creates a new znode and sets it to a different value", func(done Done) {
 		defer close(done)
 		z := NewClient()
 		wasCalled := make(chan string, 1)
